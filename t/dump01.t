@@ -6,7 +6,7 @@ BEGIN {				# Magic Perl CORE pragma
     }
 }
 
-use Test::More tests => 4;
+use Test::More tests => 6;
 use strict;
 use warnings;
 
@@ -25,3 +25,9 @@ require Data::Dumper;
 my $foo = bless {},'Foo';
 is( $foo->dump,Data::Dumper::Dumper( $foo ),"Check if Data::Dumper dump ok" );
 is( $foo->testing,Foo::testing( $foo ),"Check if Foo dump ok" );
+
+eval { UNIVERSAL::dump->import( testing => 'Foo::otherdump' ) };
+like( $@,qr#^Cannot install#,"If same method, different sub causes error" );
+
+eval { UNIVERSAL::dump->import( testing => 'Foo::dump' ) };
+is( $@,'',"If same method, same sub does not cause error" );

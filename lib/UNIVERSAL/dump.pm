@@ -3,8 +3,12 @@ package UNIVERSAL::dump;
 # Make sure we have version info for this module
 # Be strict from now on
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 use strict;
+
+# Hash with installed handlers
+
+my %installed;
 
 # Satisfy require
 
@@ -29,14 +33,23 @@ sub import {
 # Allow for redefining subroutines
 # While there are parameters to be handled
 #  Get the next method/subroutine pair
-#  Fetch the module name from it
-#  Turn it into something that can be used in a -require-
+#  If there is already a method installed with that name
+#   Croak if we're trying to install a different one
 
     no warnings 'redefine';
     while (@_) {
         my ($method,$sub) = splice @_,0,2;
+        if (my $installed = $installed{$method}) {
+            die qq{Cannot install "UNIVERSAL::$method" with "$sub": already installed with "$installed"\n} if $sub ne $installed;
+        }
+
+#  Fetch the module name from it
+#  Turn it into something that can be used in a -require-
+#  Mark this method as installed
+
         (my $module = $sub) =~ s#::[^:]+$##;
         $module =~ s#::#/#; $module .= ".pm";
+        $installed{$method} = $sub;
 
 #  Allow for variable references to subroutines
 #  Create a method which
@@ -75,7 +88,7 @@ UNIVERSAL::dump - add dump methods to all classes and objects
 
  or:
 
-  use UNIVERSAL::dump (
+  use UNIVERSAL::dump ( # create both "dump" as well as "peek"
    dump => 'Data::Dumper::Dumper',
    peek => 'Devel::Peek::Dump',
   );
@@ -105,11 +118,31 @@ As an extra feature, the output is sent to STDERR whenever the method is
 called in a void context.  This makes it easier to dump variable structures
 while debugging modules and programs.
 
+To prevent different modules fighting over the same method name, a check
+has been built in which will cause an exception when the same method is
+attempted with a different subroutine name.
+
 =head1 WHY?
 
 One day, I finally had enough of always putting a "dump" and "peek" method
 in my modules.  I came across L<UNIVERSAL::moniker> one day, and realized
 that I could do something similar for my "dump" methods.
+
+=head1 MORE EXOTIC USES
+
+This module can be used for more exotic uses as well.
+
+=head2 blessed
+
+ use UNIVERSAL::dump blessed => 'Scalar::Util::blessed';
+
+ if ($foo->blessed eq 'Foo') {
+    print "This is a Foo object\n";
+ }
+
+Adds the "blessed" method to all objects.  Returns the class with which the
+the object or specified value is not blessed.  Returns undef in every other
+case.  Prints the return value to STDERR if called in void context.
 
 =head1 REQUIRED MODULES
 

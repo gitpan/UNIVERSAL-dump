@@ -1,3 +1,9 @@
+0.03	29 January 2004
+	Added check for attempting to install the same method with a different
+	subroutine: now dies if that happens.  Added tests for it as well.
+
+	Added example of "blessed".
+
 0.02	29 January 2004
 	Argh.  Possible namespace clash with CPAN.  Added extra package
 	specification to prevent any clashes.
