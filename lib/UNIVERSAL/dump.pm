@@ -1,9 +1,9 @@
-package UNIVERSAL;
+package UNIVERSAL::dump;
 
 # Make sure we have version info for this module
 # Be strict from now on
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 use strict;
 
 # Satisfy require
@@ -46,7 +46,7 @@ sub import {
 #   Send dumper output to STDERR otherwise
 
         no strict 'refs';
-        *$method = sub {
+        *{"UNIVERSAL::$method"} = sub {
             my $self = shift;
             eval { require $module };
             return $sub->( @_ ? @_ : $self ) if defined wantarray;

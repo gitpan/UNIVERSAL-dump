@@ -1,2 +1,6 @@
+0.02	29 January 2004
+	Argh.  Possible namespace clash with CPAN.  Added extra package
+	specification to prevent any clashes.
+
 0.01	29 January 2004
 	First version of UNIVERSAL::dump.
