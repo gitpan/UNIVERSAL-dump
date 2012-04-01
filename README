@@ -4,9 +4,12 @@ Loading the UNIVERSAL::dump module adds one or more methods to all classes
 and methods.  It is intended as a debugging aid, alleviating the need to
 add and remove debugging code from modules and programs.
 
-Copyright (c) 2004 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
+Copyright (c) 2004 - 2006 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
 reserved.  This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
+
+Version:
+ 0.05
 
 Required Modules:
  Data::Dumper (any)

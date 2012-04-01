@@ -1,93 +1,79 @@
 package UNIVERSAL::dump;
 
-# Make sure we have version info for this module
-# Be strict from now on
+# version info
+$VERSION= '0.05';
 
-$VERSION = '0.04';
+# be as strict and verbose as possible
 use strict;
+use warnings;
 
-# Initialize the hash with presets
-
-my %preset = (
+# presets
+my %preset= (
  blessed => 'Scalar::Util::blessed',
  dump    => 'Data::Dumper::Dumper',
  peek    => 'Devel::Peek::Dump',
  refaddr => 'Scalar::Util::refaddr',
 );
 
-# Hash with installed handlers
-
+# installed handlers
 my %installed;
 
-# Satisfy require
-
+# satisfy require
 1;
 
-#---------------------------------------------------------------------------
-
+#-------------------------------------------------------------------------------
+#
 # Perl specific subroutines
-
-#---------------------------------------------------------------------------
+#
+#-------------------------------------------------------------------------------
 #  IN: 1 class (ignored)
 #      2..N method => subroutine pairs
 
 sub import {
+    my $class= shift;
 
-# Obtain the class (ignored for now)
-# Set default method if nothing specified
-
-    my $class = shift;
+    # make sure default is set
     unshift( @_,'dump' ) unless @_;
 
-# Allow for redefining subroutines
-# For all of the parameters to be handled
-#  If we got a preset
-#   Die now if we don't know how to handle the preset
-#   Handle the preset by calling ourselves
-#   And reloop
-
+    # allow for redefining subroutines
     no warnings 'redefine';
-    foreach (@_) {
-        unless (ref) {
-            die qq{Don't know how to install method "UNIVERSAL::$_"\n}
-             unless my $sub = $preset{$_};
-            $class->import( {$_ => $sub} );
-            next;
+
+    # handle all simple specifications
+  METHOD:
+    foreach my $spec (@_) {
+        if ( !ref($spec) ) {
+            die qq{Don't know how to install method "UNIVERSAL::$spec"\n}
+              unless my $sub= $preset{$spec};
+            $class->import( { $spec => $sub } );
+            next METHOD;
         }
 
-#  For all the method / subroutine pairs
-#   Normalize if another method name was specified
-#   If there is already a method installed with that name
-#    Croak if we're trying to install a different one
+        # all methods
+        foreach my $method ( keys %{$spec} ) {
+            my $sub= $spec->{$method};
+            $sub= $preset{$sub} if $preset{$sub};
 
-        while (my ($method,$sub) = each %{$_}) {
-            $sub = $preset{$sub} if $preset{$sub};
-            if (my $installed = $installed{$method}) {
-                die qq{Cannot install "UNIVERSAL::$method" with "$sub": already installed with "$installed"\n} if $sub ne $installed;
+            # already installed
+            if ( my $installed= $installed{$method} ) {
+                die qq{Cannot install "UNIVERSAL::$method" with "$sub":}
+                    . qq{ already installed with "$installed"\n}
+                  if $sub ne $installed;
             }
 
-#   Fetch the module name from it
-#   Turn it into something that can be used in a -require-
-#   Mark this method as installed
+            # mark method as installed
+            ( my $module= $sub ) =~ s#::[^:]+$##;
+            $module =~ s#::#/#;
+            $module .= ".pm";
+            $installed{$method}= $sub;
 
-            (my $module = $sub) =~ s#::[^:]+$##;
-            $module =~ s#::#/#; $module .= ".pm";
-            $installed{$method} = $sub;
-
-#   Allow for variable references to subroutines
-#   Create a method which
-#    Obtains the object / class
-#    Makes sure that we have the right module (even if it doesn't really exists)
-#    Return dumper output if not in void context
-#    Send dumper output to STDERR otherwise
-
+            # install the method in the indicated namespace
             no strict 'refs';
-            *{"UNIVERSAL::$method"} = sub {
+            *{"UNIVERSAL::$method"}= sub {
                 my $self = shift;
                 eval { require $module };
                 return $sub->( @_ ? @_ : $self ) if defined wantarray;
                 print STDERR $sub->( @_ ? @_ : $self );
-            } #$method
+            } #UNIVERSAL::$method
         }
     }
 } #import
@@ -98,7 +84,7 @@ __END__
 
 =head1 NAME
 
-UNIVERSAL::dump - add dump methods to all classes and objects
+UNIVERSAL::dump - add dump and other methods to all classes and objects
 
 =head1 SYNOPSIS
 
@@ -106,7 +92,7 @@ UNIVERSAL::dump - add dump methods to all classes and objects
 
  or:
 
-  use UNIVERSAL::dump qw(dump peek); # create both "dump" and "peek"
+  use UNIVERSAL::dump qw( dump peek ); # create both "dump" and "peek"
 
  or:
 
@@ -114,7 +100,7 @@ UNIVERSAL::dump - add dump methods to all classes and objects
 
  or:
 
-  use UNIVERSAL::dump ( { bar => 'Bar::Dumper' } ); # "foo" dumper
+  use UNIVERSAL::dump ( { bar => 'Bar::Dumper' } ); # "bar" dumper
 
  my $foo = Foo->new;
  print $foo->dump;         # send dump of $foo to STDOUT
@@ -122,6 +108,10 @@ UNIVERSAL::dump - add dump methods to all classes and objects
 
  $foo->dump;         # send dump of $foo to STDERR
  $foo->dump( $bar ); # send dump of $bar to STDERR
+
+=head1 VERSION
+
+This documentation describes version 0.05.
 
 =head1 DESCRIPTION
 
@@ -191,7 +181,17 @@ that I could do something similar for my "dump" methods.
 
 Any method called "dump" (or whichever class or object methods you activate
 with this module) will B<not> be AUTOLOADed because they are already found
-in the UNIVERSAL package..
+in the UNIVERSAL package.
+
+=head2 Why no direct code refs?
+
+It has been suggested that it should be possible to specify code references
+as dump subroutines directly.  So far I haven't been convinced that this is
+really necessary.  And it complicates the check for parameters versus preset
+specification.  And it complicates the check for double definition of a dump
+subroutine.
+
+You could try to convince me with a good patch.
 
 =head1 AUTHOR
 
@@ -201,8 +201,10 @@ Please report bugs to <perlbugs@dijkmat.nl>.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2004 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
-reserved.  This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+Copyright (c) 2004, 2005, 2006, 2012 Elizabeth Mattijsen (liz@dijkmat.nl).
+All rights reserved.  This program is free software; you can redistribute
+it and/or modify it under the same terms as Perl itself.
+
+Development of this module sponsored by the kind people of Booking.com.
 
 =cut
